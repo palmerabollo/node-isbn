@@ -1,0 +1,25 @@
+{
+  "name": "node-isbn",
+  "version": "1.0.0",
+  "description": "Node.js module that finds books by ISBN",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test/spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:palmerabollo/node-isbn.git"
+  },
+  "keywords": [
+    "isbn",
+    "book",
+    "google",
+    "api"
+  ],
+  "author": "Guido García <guido.garcia.bernardo@gmail.com>",
+  "license": "AGPL",
+  "devDependencies": {
+    "mocha": "^2.1.0",
+    "nock": "^0.59.1"
+  }
+}
