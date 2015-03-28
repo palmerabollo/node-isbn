@@ -49,9 +49,8 @@ function _resolveOpenLibrary(isbn, callback) {
   var standardize = function standardize(book) {
     var standardBook = {
       'title': book.details.title,
-      'authors': [],
-      'publisher': book.details.publishers[0],
       'publishedDate': book.details.publish_date,
+      'authors': [],
       'description': book.details.subtitle,
       'industryIdentifiers': [],
       'pageCount': book.details.number_of_pages,
@@ -61,31 +60,42 @@ function _resolveOpenLibrary(isbn, callback) {
           'smallThumbnail': book.thumbnail_url,
           'thumbnail': book.thumbnail_url
       },
-      'language': '',
       'previewLink': book.preview_url,
       'infoLink': book.info_url
     };
 
-    book.details.authors.forEach(function (author) {
-      standardBook.authors.push(author.name);
-    });
+    if (book.details.publishers) {
+      standardBook.publisher = book.details.publishers[0];
+    } else {
+      standardBook.publisher = '';
+    }
 
-    book.details.languages.forEach(function (language) {
-      switch (language.key) {
-        case '/languages/eng':
-          standardBook.language = 'en';
-          break;
-        case '/languages/spa':
-          standardBook.language = 'es';
-          break;
-        case '/languages/fre':
-          standardBook.language = 'fr';
-          break;
-        default:
-          standardBook.language = 'unknown';
-          break;
-      }
-    });
+    if (book.details.authors) {
+      book.details.authors.forEach(function (author) {
+        standardBook.authors.push(author.name);
+      });
+    }
+
+    if (book.details.languages) {
+      book.details.languages.forEach(function (language) {
+        switch (language.key) {
+          case '/languages/eng':
+            standardBook.language = 'en';
+            break;
+          case '/languages/spa':
+            standardBook.language = 'es';
+            break;
+          case '/languages/fre':
+            standardBook.language = 'fr';
+            break;
+          default:
+            standardBook.language = 'unknown';
+            break;
+        }
+      });
+    } else {
+      standardBook.language = 'unknown';
+    }
 
     return standardBook;
   };

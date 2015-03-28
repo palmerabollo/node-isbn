@@ -2,20 +2,12 @@
 
 var isbn = require('../index');
 
-// This one is resolved by Google Books API
-isbn.resolve('0735619670', function (err, book) {
-    if (err) {
-        console.log('Book isbn:0735619670 not found', err);
-    } else {
-        console.log('Book isbn:0735619670 found %j', book);
-    }
-});
+var input = process.argv.slice(2)[0] || '0735619670';
 
-// This one is resolved by Open Library API
-isbn.resolve('9780394584218', function (err, book) {
+isbn.resolve(input, function (err, book) {
     if (err) {
-        console.log('Book isbn:9780394584218 not found', err);
+        console.log('Book isbn:' + input + ' not found', err);
     } else {
-        console.log('Book isbn:9780394584218 found %j', book);
+        console.log('Book isbn:' + input + ' found %j', book);
     }
 });
