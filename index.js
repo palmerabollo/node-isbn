@@ -3,12 +3,15 @@
 var https = require('https');
 
 var GOOGLE_BOOKS_API_BASE = 'www.googleapis.com';
-var GOOGLE_BOOKS_API_VOLUMES = '/books/v1/volumes';
+var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes';
 
-function resolve(isbn, callback) {
+var OPENLIBRARY_API_BASE = 'openlibrary.org';
+var OPENLIBRARY_API_BOOK = '/api/books';
+
+function _resolveGoogle(isbn, callback) {
   var requestOptions = {
     host: GOOGLE_BOOKS_API_BASE,
-    path: GOOGLE_BOOKS_API_VOLUMES + '?q=isbn:' + isbn
+    path: GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
   };
 
   var request = https.request(requestOptions, function(response) {
@@ -38,6 +41,98 @@ function resolve(isbn, callback) {
   })
 
   request.end();
+}
+
+
+function _resolveOpenLibrary(isbn, callback) {
+
+  var standardize = function standardize(book) {
+    var standardBook = {
+      'title': book.details.title,
+      'authors': [],
+      'publisher': book.details.publishers[0],
+      'publishedDate': book.details.publish_date,
+      'description': book.details.subtitle,
+      'industryIdentifiers': [],
+      'pageCount': book.details.number_of_pages,
+      'printType': 'BOOK',
+      'categories': [],
+      'imageLinks': {
+          'smallThumbnail': book.thumbnail_url,
+          'thumbnail': book.thumbnail_url
+      },
+      'language': '',
+      'previewLink': book.preview_url,
+      'infoLink': book.info_url
+    };
+
+    book.details.authors.forEach(function (author) {
+      standardBook.authors.push(author.name);
+    });
+
+    book.details.languages.forEach(function (language) {
+      switch (language.key) {
+        case '/languages/eng':
+          standardBook.language = 'en';
+          break;
+        case '/languages/spa':
+          standardBook.language = 'es';
+          break;
+        case '/languages/fre':
+          standardBook.language = 'fr';
+          break;
+        default:
+          standardBook.language = 'unknown';
+          break;
+      }
+    });
+
+    return standardBook;
+  };
+
+  var requestOptions = {
+    host: OPENLIBRARY_API_BASE,
+    path: OPENLIBRARY_API_BOOK + '?bibkeys=ISBN:' + isbn + '&format=json&jscmd=details'
+  };
+
+  var request = https.request(requestOptions, function(response) {
+    if (response.statusCode !== 200) {
+      return callback(new Error('wrong response code: ' + response.statusCode));
+    }
+
+    var body = '';
+    response.on('data', function(chunk) {
+      body += chunk;
+    })
+
+    response.on('end', function() {
+      var books = JSON.parse(body);
+      var book = books['ISBN:' + isbn];
+
+      if (!book) {
+        return callback(new Error('no books found with isbn: ' + isbn));
+      }
+
+      return callback(null, standardize(book));
+    })
+  });
+
+  request.on('error', function(err) {
+    return callback(err);
+  })
+
+  request.end();
+}
+
+// XXX refactor this code if more providers are added.
+
+function resolve(isbn, callback) {
+  _resolveGoogle(isbn, function(err, book) {
+    if (err) {
+      return _resolveOpenLibrary(isbn, callback);
+    }
+    return callback(null, book);
+  });
 }
 
 module.exports = {

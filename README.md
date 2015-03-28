@@ -1,6 +1,7 @@
 # node-isbn
 
-A simple node.js module that uses [Google Books API](https://developers.google.com/books/) to find books by ISBN.
+A simple node.js module that uses [Google Books API](https://developers.google.com/books/) and
+[Open Library Books API](https://openlibrary.org/dev/docs/api/books) to find books by ISBN.
 
 ## Example
 
@@ -62,6 +63,7 @@ isbn.resolve('0735619670', function (err, book) {
 http://www.gnu.org/licenses/agpl-3.0.html
 
 See also [Google Books API Terms of Service](https://developers.google.com/books/terms)
+and [Open Library Licensing](https://openlibrary.org/developers/licensing).
 
 ## Development
 
