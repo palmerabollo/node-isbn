@@ -2,6 +2,8 @@
 
 var https = require('https');
 
+https.globalAgent.maxSockets = 500;
+
 var GOOGLE_BOOKS_API_BASE = 'www.googleapis.com';
 var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes';
 
