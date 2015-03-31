@@ -13,6 +13,9 @@ var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes?q=isbn:' + MOCK_ISBN;
 var OPENLIBRARY_API_BASE = 'https://openlibrary.org';
 var OPENLIBRARY_API_BOOK = '/api/books' + '?bibkeys=ISBN:' + MOCK_ISBN + '&format=json&jscmd=details';
 
+var WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
+var WORLDCAT_API_BOOK = '/webservices/xid/isbn/' + MOCK_ISBN + '?method=getMetadata&fl=*&format=json';
+
 describe('ISBN Resolver', function() {
   it('should resolve a valid ISBN with Google', function(done) {
     var mockResponseGoogle = {
@@ -89,13 +92,31 @@ describe('ISBN Resolver', function() {
     })
   });
 
-  it('should return an error if no book is found', function(done) {
+  it('should resolve a valid ISBN with Worldcat', function(done) {
     var mockResponseGoogle = {
       kind: 'books#volumes',
       totalItems: 0
     };
 
     var mockResponseOpenLibrary = {};
+
+    var mockResponseWorldcat = {
+      "stat":"ok",
+      "list":[{
+        "url":["http://www.worldcat.org/oclc/249645389?referer=xid"],
+        "publisher":"Turtle Bay Books",
+        "form":["BC", "DA"],
+        "lccn":["2004049981"],
+        "lang":"eng",
+        "city":"Redmond, Wash.",
+        "author":"Steve McConnell.",
+        "ed":"2. ed.",
+        "year":"1992",
+        "isbn":["0735619670"],
+        "title":"Book Title",
+        "oclcnum":["249645389", "301075365", "427465443"]
+      }]
+    };
 
     nock(GOOGLE_BOOKS_API_BASE)
         .get(GOOGLE_BOOKS_API_BOOK)
@@ -104,6 +125,42 @@ describe('ISBN Resolver', function() {
     nock(OPENLIBRARY_API_BASE)
         .get(OPENLIBRARY_API_BOOK)
         .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+    nock(WORLDCAT_API_BASE)
+        .get(WORLDCAT_API_BOOK)
+        .reply(200, JSON.stringify(mockResponseWorldcat));
+
+    isbn.resolve(MOCK_ISBN, function(err, book) {
+      assert.equal(err, null);
+      assert.equal(book.title, 'Book Title');
+      assert.equal(book.publisher, 'Turtle Bay Books');
+      assert.equal(book.publishedDate, '1992');
+      assert.equal(book.language, 'en');
+      done();
+    })
+  });
+
+  it('should return an error if no book is found', function(done) {
+    var mockResponseGoogle = {
+      kind: 'books#volumes',
+      totalItems: 0
+    };
+
+    var mockResponseOpenLibrary = {};
+
+    var mockResponseWorldcat = {'stat': 'invalidId'};
+
+    nock(GOOGLE_BOOKS_API_BASE)
+        .get(GOOGLE_BOOKS_API_BOOK)
+        .reply(200, JSON.stringify(mockResponseGoogle));
+
+    nock(OPENLIBRARY_API_BASE)
+        .get(OPENLIBRARY_API_BOOK)
+        .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+    nock(WORLDCAT_API_BASE)
+        .get(WORLDCAT_API_BOOK)
+        .reply(200, JSON.stringify(mockResponseWorldcat));
 
     isbn.resolve(MOCK_ISBN, function(err, book) {
       assert.notEqual(err, null);
@@ -120,13 +177,17 @@ describe('ISBN Resolver', function() {
     })
   });
 
-  it('should return an error if Google API returns a HTTP error', function(done) {
+  it('should return an error if external endpoints return a HTTP error', function(done) {
     nock(GOOGLE_BOOKS_API_BASE)
         .get(GOOGLE_BOOKS_API_BOOK)
         .reply(500);
 
     nock(OPENLIBRARY_API_BASE)
         .get(OPENLIBRARY_API_BOOK)
+        .reply(500);
+
+    nock(WORLDCAT_API_BASE)
+        .get(WORLDCAT_API_BOOK)
         .reply(500);
 
     isbn.resolve(MOCK_ISBN, function(err, book) {
