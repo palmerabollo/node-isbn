@@ -1,6 +1,7 @@
 'use strict';
 
 var https = require('https');
+var http = require('http');
 
 https.globalAgent.maxSockets = 500;
 
@@ -9,6 +10,9 @@ var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes';
 
 var OPENLIBRARY_API_BASE = 'openlibrary.org';
 var OPENLIBRARY_API_BOOK = '/api/books';
+
+var WORLDCAT_API_BASE = 'xisbn.worldcat.org';
+var WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
 function _resolveGoogle(isbn, callback) {
   var requestOptions = {
@@ -44,7 +48,6 @@ function _resolveGoogle(isbn, callback) {
 
   request.end();
 }
-
 
 function _resolveOpenLibrary(isbn, callback) {
 
@@ -136,12 +139,91 @@ function _resolveOpenLibrary(isbn, callback) {
   request.end();
 }
 
+function _resolveWorldcat(isbn, callback) {
+
+  var standardize = function standardize(book) {
+    var standardBook = {
+      'title': book.title,
+      'publishedDate': book.year,
+      'authors': [],
+      'description': null,
+      'industryIdentifiers': [],
+      'pageCount': null,
+      'printType': 'BOOK',
+      'categories': [],
+      'imageLinks': {
+      },
+      'publisher': book.publisher
+    };
+
+    if (book.author) {
+      standardBook.authors.push(book.author);
+    }
+
+    switch (book.lang) {
+      case 'eng':
+        standardBook.language = 'en';
+        break;
+      case 'spa':
+        standardBook.language = 'es';
+        break;
+      case 'fre':
+        standardBook.language = 'fr';
+        break;
+      default:
+        standardBook.language = 'unknown';
+        break;
+    };
+
+    return standardBook;
+  };
+
+  var requestOptions = {
+    host: WORLDCAT_API_BASE,
+    path: WORLDCAT_API_BOOK + '/' + isbn + '?method=getMetadata&fl=*&format=json'
+  };
+
+  var request = http.request(requestOptions, function(response) {
+    if (response.statusCode !== 200) {
+      return callback(new Error('wrong response code: ' + response.statusCode));
+    }
+
+    var body = '';
+    response.on('data', function(chunk) {
+      body += chunk;
+    })
+
+    response.on('end', function() {
+      var books = JSON.parse(body);
+
+      if (books.stat !== 'ok') {
+        return callback(new Error('no books found with isbn: ' + isbn));
+      }
+
+      var book = books.list[0];
+
+      return callback(null, standardize(book));
+    })
+  });
+
+  request.on('error', function(err) {
+    return callback(err);
+  })
+
+  request.end();
+}
+
 // XXX refactor this code if more providers are added.
 
 function resolve(isbn, callback) {
   _resolveGoogle(isbn, function(err, book) {
     if (err) {
-      return _resolveOpenLibrary(isbn, callback);
+      return _resolveOpenLibrary(isbn, function (err, book) {
+        if (err) {
+          return _resolveWorldcat(isbn, callback);
+        }
+        return callback(null, book);
+      });
     }
     return callback(null, book);
   });
