@@ -195,4 +195,83 @@ describe('ISBN Resolver', function() {
       done();
     })
   });
+
+  it('should timeout on long connections', function(done) {
+    var mockResponseGoogle = {
+      totalItems: 1,
+      items: [{
+        'volumeInfo': {
+          'title': 'Code Complete',
+          'authors': ['Steve McConnell']
+        }
+      }]
+    };
+
+    var mockResponseOpenLibrary = {}
+    mockResponseOpenLibrary['ISBN:' + MOCK_ISBN] = {
+      'info_url': 'https://openlibrary.org/books/OL1743093M/Book',
+      'preview_url': 'https://archive.org/details/whatsitallabouta00cain',
+      'thumbnail_url': 'https://covers.openlibrary.org/b/id/6739180-S.jpg',
+      'details': {
+        'number_of_pages': 521,
+        'subtitle': 'an autobiography',
+        'title': 'Book Title',
+        'languages': [
+          {
+            'key': '/languages/eng'
+          }
+        ],
+        'publishers': [
+          'Turtle Bay Books'
+        ],
+        'authors': [
+          {
+            'name': 'Michael Caine',
+            'key': '/authors/OL840869A'
+          }
+        ],
+        'publish_date': '1992',
+      },
+      'preview': 'borrow'
+    };
+
+    var mockResponseWorldcat = {
+      "stat":"ok",
+      "list":[{
+        "url":["http://www.worldcat.org/oclc/249645389?referer=xid"],
+        "publisher":"Turtle Bay Books",
+        "form":["BC", "DA"],
+        "lccn":["2004049981"],
+        "lang":"eng",
+        "city":"Redmond, Wash.",
+        "author":"Steve McConnell.",
+        "ed":"2. ed.",
+        "year":"1992",
+        "isbn":["0735619670"],
+        "title":"Book Title",
+        "oclcnum":["249645389", "301075365", "427465443"]
+      }]
+    };
+
+    nock(GOOGLE_BOOKS_API_BASE)
+        .get(GOOGLE_BOOKS_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify(mockResponseGoogle));
+
+    nock(OPENLIBRARY_API_BASE)
+        .get(OPENLIBRARY_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+    nock(WORLDCAT_API_BASE)
+        .get(WORLDCAT_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify(mockResponseWorldcat));
+
+    isbn.resolve(MOCK_ISBN, function(err, book) {
+      console.log(err);
+      assert.notEqual(err, null);
+      done();
+    })
+  });
 })
