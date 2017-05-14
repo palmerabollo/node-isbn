@@ -44,10 +44,10 @@ var OPENLIBRARY_API_BOOK = '/api/books';
 var WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 var WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
-function _resolveGoogle(isbn, callback) {
-  var requestOptions = Object.assign({
+function _resolveGoogle(isbn, options, callback) {
+  var requestOptions = Object.assign({}, defaultOptions, options, {
     url: GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
-  }, defaultOptions);
+  });
 
   request(requestOptions, function(error, response, body) {
     if (error) {
@@ -74,7 +74,7 @@ function _resolveGoogle(isbn, callback) {
   });
 }
 
-function _resolveOpenLibrary(isbn, callback) {
+function _resolveOpenLibrary(isbn, options, callback) {
 
   var standardize = function standardize(book) {
     var standardBook = {
@@ -130,9 +130,9 @@ function _resolveOpenLibrary(isbn, callback) {
     return standardBook;
   };
 
-  var requestOptions = Object.assign({
+  var requestOptions = Object.assign({}, defaultOptions, options, {
     url: OPENLIBRARY_API_BASE + OPENLIBRARY_API_BOOK + '?bibkeys=ISBN:' + isbn + '&format=json&jscmd=details'
-  }, defaultOptions);
+  });
 
   request(requestOptions, function(error, response, body) {
     if (error) {
@@ -154,7 +154,7 @@ function _resolveOpenLibrary(isbn, callback) {
   });
 }
 
-function _resolveWorldcat(isbn, callback) {
+function _resolveWorldcat(isbn, options, callback) {
 
   var standardize = function standardize(book) {
     var standardBook = {
@@ -193,9 +193,9 @@ function _resolveWorldcat(isbn, callback) {
     return standardBook;
   };
 
-  var requestOptions = Object.assign({
+  var requestOptions = Object.assign({}, defaultOptions, options, {
     url: WORLDCAT_API_BASE + WORLDCAT_API_BOOK + '/' + isbn + '?method=getMetadata&fl=*&format=json'
-  }, defaultOptions);
+  });
 
   request(requestOptions, function(error, response, body) {
     if (error) {
@@ -220,12 +220,15 @@ function _resolveWorldcat(isbn, callback) {
 
 // XXX refactor this code if more providers are added.
 
-function resolve(isbn, callback) {
-  _resolveGoogle(isbn, function(err, book) {
+function resolve(isbn) {
+  const options = arguments.length === 3 ? arguments[1] : null;
+  const callback = arguments.length === 3 ? arguments[2] : arguments[1];
+
+  _resolveGoogle(isbn, options, function(err, book) {
     if (err) {
-      return _resolveOpenLibrary(isbn, function (err, book) {
+      return _resolveOpenLibrary(isbn, options, function (err, book) {
         if (err) {
-          return _resolveWorldcat(isbn, callback);
+          return _resolveWorldcat(isbn, options, callback);
         }
         return callback(null, book);
       });
