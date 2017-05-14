@@ -37,6 +37,11 @@ function _resolveGoogle(isbn, callback) {
         return callback(new Error('no books found with isbn: ' + isbn));
       }
 
+      // In very rare circumstances books.items[0] is undefined (see #2)
+      if (!books.items || books.items.length === 0) {
+        return callback(new Error('no volume info found for book with isbn: ' + isbn));
+      }
+
       var book = books.items[0].volumeInfo;
       return callback(null, book);
     })
