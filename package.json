@@ -1,6 +1,6 @@
 {
   "name": "node-isbn",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Node.js module that finds books by ISBN",
   "main": "index.js",
   "scripts": {
