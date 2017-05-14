@@ -269,7 +269,6 @@ describe('ISBN Resolver', function() {
         .reply(200, JSON.stringify(mockResponseWorldcat));
 
     isbn.resolve(MOCK_ISBN, function(err, book) {
-      console.log(err);
       assert.notEqual(err, null);
       done();
     })
