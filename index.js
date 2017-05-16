@@ -1,60 +1,54 @@
 'use strict';
 
-var https = require('https');
-var http = require('http');
+var request = require('request');
 
-https.globalAgent.maxSockets = 500;
+var defaultOptions = {
+  poll: {
+    maxSockets: 500,
+  },
+  timeout: 5000
+};
 
-var GOOGLE_BOOKS_API_BASE = 'www.googleapis.com';
+var GOOGLE_BOOKS_API_BASE = 'https://www.googleapis.com';
 var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes';
 
-var OPENLIBRARY_API_BASE = 'openlibrary.org';
+var OPENLIBRARY_API_BASE = 'https://openlibrary.org';
 var OPENLIBRARY_API_BOOK = '/api/books';
 
-var WORLDCAT_API_BASE = 'xisbn.worldcat.org';
+var WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 var WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
-function _resolveGoogle(isbn, callback) {
-  var requestOptions = {
-    host: GOOGLE_BOOKS_API_BASE,
-    path: GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
-  };
+function _resolveGoogle(isbn, options, callback) {
+  var requestOptions = Object.assign({}, defaultOptions, options, {
+    url: GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
+  });
 
-  var request = https.request(requestOptions, function(response) {
+  request(requestOptions, function(error, response, body) {
+    if (error) {
+      return callback(error);
+    }
+
     if (response.statusCode !== 200) {
       return callback(new Error('wrong response code: ' + response.statusCode));
     }
 
-    var body = '';
-    response.on('data', function(chunk) {
-      body += chunk;
-    })
+    var books = JSON.parse(body);
 
-    response.on('end', function() {
-      var books = JSON.parse(body);
+    if (!books.totalItems) {
+      return callback(new Error('no books found with isbn: ' + isbn));
+    }
 
-      if (!books.totalItems) {
-        return callback(new Error('no books found with isbn: ' + isbn));
-      }
+    // In very rare circumstances books.items[0] is undefined (see #2)
+    if (!books.items || books.items.length === 0) {
+      return callback(new Error('no volume info found for book with isbn: ' + isbn));
+    }
 
-      // In very rare circumstances books.items[0] is undefined (see #2)
-      if (!books.items || books.items.length === 0) {
-        return callback(new Error('no volume info found for book with isbn: ' + isbn));
-      }
-
-      var book = books.items[0].volumeInfo;
-      return callback(null, book);
-    })
+    var book = books.items[0].volumeInfo;
+    return callback(null, book);
   });
-
-  request.on('error', function(err) {
-    return callback(err);
-  })
-
-  request.end();
 }
 
-function _resolveOpenLibrary(isbn, callback) {
+function _resolveOpenLibrary(isbn, options, callback) {
 
   var standardize = function standardize(book) {
     var standardBook = {
@@ -110,41 +104,31 @@ function _resolveOpenLibrary(isbn, callback) {
     return standardBook;
   };
 
-  var requestOptions = {
-    host: OPENLIBRARY_API_BASE,
-    path: OPENLIBRARY_API_BOOK + '?bibkeys=ISBN:' + isbn + '&format=json&jscmd=details'
-  };
+  var requestOptions = Object.assign({}, defaultOptions, options, {
+    url: OPENLIBRARY_API_BASE + OPENLIBRARY_API_BOOK + '?bibkeys=ISBN:' + isbn + '&format=json&jscmd=details'
+  });
 
-  var request = https.request(requestOptions, function(response) {
+  request(requestOptions, function(error, response, body) {
+    if (error) {
+      return callback(error);
+    }
+
     if (response.statusCode !== 200) {
       return callback(new Error('wrong response code: ' + response.statusCode));
     }
 
-    var body = '';
-    response.on('data', function(chunk) {
-      body += chunk;
-    })
+    var books = JSON.parse(body);
+    var book = books['ISBN:' + isbn];
 
-    response.on('end', function() {
-      var books = JSON.parse(body);
-      var book = books['ISBN:' + isbn];
+    if (!book) {
+      return callback(new Error('no books found with isbn: ' + isbn));
+    }
 
-      if (!book) {
-        return callback(new Error('no books found with isbn: ' + isbn));
-      }
-
-      return callback(null, standardize(book));
-    })
+    return callback(null, standardize(book));
   });
-
-  request.on('error', function(err) {
-    return callback(err);
-  })
-
-  request.end();
 }
 
-function _resolveWorldcat(isbn, callback) {
+function _resolveWorldcat(isbn, options, callback) {
 
   var standardize = function standardize(book) {
     var standardBook = {
@@ -183,49 +167,42 @@ function _resolveWorldcat(isbn, callback) {
     return standardBook;
   };
 
-  var requestOptions = {
-    host: WORLDCAT_API_BASE,
-    path: WORLDCAT_API_BOOK + '/' + isbn + '?method=getMetadata&fl=*&format=json'
-  };
+  var requestOptions = Object.assign({}, defaultOptions, options, {
+    url: WORLDCAT_API_BASE + WORLDCAT_API_BOOK + '/' + isbn + '?method=getMetadata&fl=*&format=json'
+  });
 
-  var request = http.request(requestOptions, function(response) {
+  request(requestOptions, function(error, response, body) {
+    if (error) {
+      return callback(error);
+    }
+
     if (response.statusCode !== 200) {
       return callback(new Error('wrong response code: ' + response.statusCode));
     }
 
-    var body = '';
-    response.on('data', function(chunk) {
-      body += chunk;
-    })
+    var books = JSON.parse(body);
 
-    response.on('end', function() {
-      var books = JSON.parse(body);
+    if (books.stat !== 'ok') {
+      return callback(new Error('no books found with isbn: ' + isbn));
+    }
 
-      if (books.stat !== 'ok') {
-        return callback(new Error('no books found with isbn: ' + isbn));
-      }
+    var book = books.list[0];
 
-      var book = books.list[0];
-
-      return callback(null, standardize(book));
-    })
+    return callback(null, standardize(book));
   });
-
-  request.on('error', function(err) {
-    return callback(err);
-  })
-
-  request.end();
 }
 
 // XXX refactor this code if more providers are added.
 
-function resolve(isbn, callback) {
-  _resolveGoogle(isbn, function(err, book) {
+function resolve(isbn) {
+  const options = arguments.length === 3 ? arguments[1] : null;
+  const callback = arguments.length === 3 ? arguments[2] : arguments[1];
+
+  _resolveGoogle(isbn, options, function(err, book) {
     if (err) {
-      return _resolveOpenLibrary(isbn, function (err, book) {
+      return _resolveOpenLibrary(isbn, options, function (err, book) {
         if (err) {
-          return _resolveWorldcat(isbn, callback);
+          return _resolveWorldcat(isbn, options, callback);
         }
         return callback(null, book);
       });

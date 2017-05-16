@@ -195,4 +195,48 @@ describe('ISBN Resolver', function() {
       done();
     })
   });
+
+  it('should timeout on long connections', function(done) {
+    nock(GOOGLE_BOOKS_API_BASE)
+        .get(GOOGLE_BOOKS_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify({}));
+
+    nock(OPENLIBRARY_API_BASE)
+        .get(OPENLIBRARY_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify({}));
+
+    nock(WORLDCAT_API_BASE)
+        .get(WORLDCAT_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify({}));
+
+    isbn.resolve(MOCK_ISBN, function(err, book) {
+      assert.notEqual(err, null);
+      done();
+    })
+  });
+
+  it('should override default options', function(done) {
+    var mockResponseGoogle = {
+      totalItems: 1,
+      items: [{
+        'volumeInfo': {
+          'title': 'Code Complete',
+          'authors': ['Steve McConnell']
+        }
+      }]
+    };
+
+    nock(GOOGLE_BOOKS_API_BASE)
+        .get(GOOGLE_BOOKS_API_BOOK)
+        .socketDelay(10000)
+        .reply(200, JSON.stringify(mockResponseGoogle));
+
+    isbn.resolve(MOCK_ISBN, { timeout: 15000 }, function(err, book) {
+      assert.equal(err, null);
+      done();
+    })
+  });
 })

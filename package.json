@@ -23,5 +23,8 @@
   "devDependencies": {
     "mocha": "^3.3.0",
     "nock": "^9.0.13"
+  },
+  "dependencies": {
+    "request": "^2.81.0"
   }
 }
