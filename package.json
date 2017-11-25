@@ -4,7 +4,8 @@
   "description": "Find books by ISBN",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test/spec"
+    "test": "mocha test/spec",
+    "testDebug": "mocha --inspect-brk test/spec"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,6 @@
     "nock": "^9.0.13"
   },
   "dependencies": {
-    "request": "^2.81.0"
+    "axios": "^0.17.1"
   }
 }

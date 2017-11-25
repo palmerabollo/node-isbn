@@ -5,7 +5,9 @@ A simple node.js module that **resolves books by ISBN** using multiple services:
 * [Open Library Books API](https://openlibrary.org/dev/docs/api/books)
 * [WorldCat xISBN API](http://xisbn.worldcat.org/xisbnadmin/doc/api.htm)
 
-## Example
+## Examples
+
+### Using a callback
 
 ```javascript
 var isbn = require('node-isbn');
@@ -16,6 +18,32 @@ isbn.resolve('0735619670', function (err, book) {
     } else {
         console.log('Book found %j', book);
     }
+});
+```
+
+### Setting a timeout
+
+```javascript
+var isbn = require('node-isbn');
+
+isbn.resolve('0735619670', { timeout: 15000 }, function (err, book) {
+    if (err) {
+        console.log('Book not found', err);
+    } else {
+        console.log('Book found %j', book);
+    }
+});
+```
+
+### Using a promise
+
+```javascript
+var isbn = require('node-isbn');
+
+isbn.resolve('0735619670').then(function (book) {
+    console.log('Book found %j', book);
+}).catch(function (err) {
+    console.log('Book not found', err);
 });
 ```
 
