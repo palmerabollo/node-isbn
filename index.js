@@ -1,6 +1,6 @@
 'use strict';
 
-var request = require('request');
+var axios = require('axios');
 
 var defaultOptions = {
   poll: {
@@ -18,33 +18,29 @@ var OPENLIBRARY_API_BOOK = '/api/books';
 var WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 var WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
-function _resolveGoogle(isbn, options, callback) {
+function _resolveGoogle(isbn, options) {
   var requestOptions = Object.assign({}, defaultOptions, options, {
     url: GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
   });
 
-  request(requestOptions, function(error, response, body) {
-    if (error) {
-      return callback(error);
+  return axios.request(requestOptions).then(function (response) {
+    if (response.status !== 200) {
+      return Promise.reject(new Error('wrong response code: ' + response.status));
     }
 
-    if (response.statusCode !== 200) {
-      return callback(new Error('wrong response code: ' + response.statusCode));
-    }
-
-    var books = JSON.parse(body);
+    var books = response.data;
 
     if (!books.totalItems) {
-      return callback(new Error('no books found with isbn: ' + isbn));
+      return Promise.reject(new Error('no books found with isbn: ' + isbn));
     }
 
     // In very rare circumstances books.items[0] is undefined (see #2)
     if (!books.items || books.items.length === 0) {
-      return callback(new Error('no volume info found for book with isbn: ' + isbn));
+      return Promise.reject(new Error('no volume info found for book with isbn: ' + isbn));
     }
 
     var book = books.items[0].volumeInfo;
-    return callback(null, book);
+    return Promise.resolve(book);
   });
 }
 
@@ -108,23 +104,19 @@ function _resolveOpenLibrary(isbn, options, callback) {
     url: OPENLIBRARY_API_BASE + OPENLIBRARY_API_BOOK + '?bibkeys=ISBN:' + isbn + '&format=json&jscmd=details'
   });
 
-  request(requestOptions, function(error, response, body) {
-    if (error) {
-      return callback(error);
+  return axios.request(requestOptions).then(function(response) {
+    if (response.status !== 200) {
+      return Promise.reject(new Error('wrong response code: ' + response.status));
     }
 
-    if (response.statusCode !== 200) {
-      return callback(new Error('wrong response code: ' + response.statusCode));
-    }
-
-    var books = JSON.parse(body);
+    var books = response.data
     var book = books['ISBN:' + isbn];
 
     if (!book) {
-      return callback(new Error('no books found with isbn: ' + isbn));
+      return Promise.reject(new Error('no books found with isbn: ' + isbn));
     }
 
-    return callback(null, standardize(book));
+    return Promise.resolve(standardize(book));
   });
 }
 
@@ -171,44 +163,54 @@ function _resolveWorldcat(isbn, options, callback) {
     url: WORLDCAT_API_BASE + WORLDCAT_API_BOOK + '/' + isbn + '?method=getMetadata&fl=*&format=json'
   });
 
-  request(requestOptions, function(error, response, body) {
-    if (error) {
-      return callback(error);
+  return axios.request(requestOptions).then(function(response) {
+    if (response.status !== 200) {
+      return Promise.reject(new Error('wrong response code: ' + response.statusCode));
     }
 
-    if (response.statusCode !== 200) {
-      return callback(new Error('wrong response code: ' + response.statusCode));
-    }
-
-    var books = JSON.parse(body);
+    var books = response.data;
 
     if (books.stat !== 'ok') {
-      return callback(new Error('no books found with isbn: ' + isbn));
+      return Promise.reject(new Error('no books found with isbn: ' + isbn));
     }
 
     var book = books.list[0];
 
-    return callback(null, standardize(book));
+    return Promise.resolve(standardize(book));
   });
 }
-
-// XXX refactor this code if more providers are added.
 
 function resolve(isbn) {
   const options = arguments.length === 3 ? arguments[1] : null;
   const callback = arguments.length === 3 ? arguments[2] : arguments[1];
 
-  _resolveGoogle(isbn, options, function(err, book) {
-    if (err) {
-      return _resolveOpenLibrary(isbn, options, function (err, book) {
-        if (err) {
-          return _resolveWorldcat(isbn, options, callback);
-        }
-        return callback(null, book);
-      });
+  var promise = _resolveGoogle(isbn, options)
+  .catch(function (err) {
+    return _resolveOpenLibrary(isbn, options);
+  })
+  .catch(function (err) {
+    return _resolveWorldcat(isbn, options);
+  })
+  .then(function (book) {
+    if (typeof(callback) === 'function') {
+      callback(null, book);
+    } else {
+      return Promise.resolve(book);
     }
-    return callback(null, book);
-  });
+  })
+  .catch(function (err) {
+    if (typeof(callback) === 'function') {
+      // Error will be handled by callback
+      callback(err, null);
+    } else {
+      // Re-raise the error for the next .then/.catch in the chain
+      return Promise.reject(err);
+    }
+  })
+
+  if (typeof(callback) !== 'function') {
+    return promise;
+  }
 }
 
 module.exports = {
