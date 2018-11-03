@@ -20,7 +20,7 @@ var WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
 function _resolveGoogle(isbn, options) {
   var requestOptions = Object.assign({}, defaultOptions, options, {
-    url: GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK + '?q=isbn:' + isbn
+    url: GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK + '?q=ISBN:' + isbn
   });
 
   return axios.request(requestOptions).then(function (response) {
