@@ -43,26 +43,26 @@ function _resolveGoogle(isbn, options) {
 
   return axios.request(requestOptions).then(({status, data}) => {
     if (status !== 200) {
-      return Promise.reject(new Error(`wrong response code: ${status}`));
+      throw new Error(`wrong response code: ${status}`);
     }
 
     const books = data;
 
     if (!books.totalItems) {
-      return Promise.reject(new Error(`no books found with isbn: ${isbn}`));
+      throw new Error(`no books found with isbn: ${isbn}`);
     }
 
     // In very rare circumstances books.items[0] is undefined (see #2)
     if (!books.items || books.items.length === 0) {
-      return Promise.reject(new Error(`no volume info found for book with isbn: ${isbn}`));
+      throw new Error(`no volume info found for book with isbn: ${isbn}`);
     }
 
     const book = books.items[0].volumeInfo;
-    return Promise.resolve(book);
+    return book;
   });
 }
 
-function _resolveOpenLibrary(isbn, options, callback) {
+function _resolveOpenLibrary(isbn, options) {
 
   const standardize = function standardize(book) {
     const standardBook = {
@@ -124,21 +124,21 @@ function _resolveOpenLibrary(isbn, options, callback) {
 
   return axios.request(requestOptions).then(({status, data}) => {
     if (status !== 200) {
-      return Promise.reject(new Error(`wrong response code: ${status}`));
+      throw new Error(`wrong response code: ${status}`);
     }
 
     const books = data;
     const book = books[`ISBN:${isbn}`];
 
     if (!book) {
-      return Promise.reject(new Error(`no books found with isbn: ${isbn}`));
+      throw new Error(`no books found with isbn: ${isbn}`);
     }
 
-    return Promise.resolve(standardize(book));
+    return standardize(book);
   });
 }
 
-function _resolveWorldcat(isbn, options, callback) {
+function _resolveWorldcat(isbn, options) {
 
   const standardize = function standardize(book) {
     const standardBook = {
@@ -183,18 +183,18 @@ function _resolveWorldcat(isbn, options, callback) {
 
   return axios.request(requestOptions).then(({status, statusCode, data}) => {
     if (status !== 200) {
-      return Promise.reject(new Error(`wrong response code: ${statusCode}`));
+      throw new Error(`wrong response code: ${statusCode}`);
     }
 
     const books = data;
 
     if (books.stat !== 'ok') {
-      return Promise.reject(new Error(`no books found with isbn: ${isbn}`));
+      throw new Error(`no books found with isbn: ${isbn}`);
     }
 
     const book = books.list[0];
 
-    return Promise.resolve(standardize(book));
+    return standardize(book);
   });
 }
 
@@ -220,7 +220,7 @@ function resolve(isbn) {
       if (typeof (callback) === 'function') {
         callback(null, book);
       } else {
-        return Promise.resolve(book);
+        return book;
       }
     })
     .catch(err => {
@@ -228,8 +228,8 @@ function resolve(isbn) {
         // Error will be handled by callback
         callback(err, null);
       } else {
-        // Re-raise the error for the next .then/.catch in the chain
-        return Promise.reject(err);
+        // Rethrow the error for the next .then/.catch in the chain
+        throw err;
       }
     });
 
