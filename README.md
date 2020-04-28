@@ -5,6 +5,14 @@ A simple node.js module that **resolves books by ISBN** using multiple services:
 * [Open Library Books API](https://openlibrary.org/dev/docs/api/books)
 * [WorldCat xISBN API](http://xisbn.worldcat.org/xisbnadmin/doc/api.htm)
 
+## Installation
+
+```
+$ npm install node-isbn
+```
+
+Supports Node.js versions 6.x and greater.
+
 ## Examples
 
 ### Using a callback
@@ -101,9 +109,9 @@ See also [Google Books API Terms of Service](https://developers.google.com/books
 
 ## Development
 
-Tests use [mocha](http://mochajs.org). Feel free to contribute.
+* Ensure that you using Node 6 or greater.
+* Tests use [mocha](http://mochajs.org). Feel free to contribute.
 
 ```
-npm install -g mocha
-npm test
+$ npm test
 ```
