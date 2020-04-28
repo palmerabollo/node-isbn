@@ -18,6 +18,24 @@ const OPENLIBRARY_API_BOOK = '/api/books';
 const WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 const WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
+const PROVIDER_NAMES = {
+  GOOGLE: 'google',
+  OPENLIBRARY: 'openlibrary',
+  WORLDCAT: 'worldcat'
+}
+
+const DEFAULT_PROVIDERS = [
+  PROVIDER_NAMES.GOOGLE,
+  PROVIDER_NAMES.OPENLIBRARY,
+  PROVIDER_NAMES.WORLDCAT
+]
+
+const PROVIDER_RESOLVERS = {
+  [PROVIDER_NAMES.GOOGLE]: _resolveGoogle,
+  [PROVIDER_NAMES.OPENLIBRARY]: _resolveOpenLibrary,
+  [PROVIDER_NAMES.WORLDCAT]: _resolveWorldcat
+}
+
 function _resolveGoogle(isbn, options) {
   const requestOptions = Object.assign({}, defaultOptions, options, {
     url: `${GOOGLE_BOOKS_API_BASE + GOOGLE_BOOKS_API_BOOK}?q=isbn:${isbn}`
@@ -180,31 +198,42 @@ function _resolveWorldcat(isbn, options, callback) {
   });
 }
 
+function getBookInfo(providers, isbn, options) {
+  const [firstProvider, ...remainingProviders] = providers;
+
+  // Try the first provider..
+  const seed = PROVIDER_RESOLVERS[firstProvider](isbn, options)
+
+  // ...and set remaining providers as fallbacks!
+  return remainingProviders
+    .reduce((promise, provider) => {
+      return promise.catch(err => PROVIDER_RESOLVERS[provider](isbn, options));
+    }, seed);
+}
+
 function resolve(isbn) {
   const options = arguments.length === 3 ? arguments[1] : null;
   const callback = arguments.length === 3 ? arguments[2] : arguments[1];
 
-  const promise = _resolveGoogle(isbn, options)
-  .catch(err => _resolveOpenLibrary(isbn, options))
-  .catch(err => _resolveWorldcat(isbn, options))
-  .then(book => {
-    if (typeof(callback) === 'function') {
-      callback(null, book);
-    } else {
-      return Promise.resolve(book);
-    }
-  })
-  .catch(err => {
-    if (typeof(callback) === 'function') {
-      // Error will be handled by callback
-      callback(err, null);
-    } else {
-      // Re-raise the error for the next .then/.catch in the chain
-      return Promise.reject(err);
-    }
-  });
+  const promise = getBookInfo(DEFAULT_PROVIDERS, isbn, options)
+    .then(book => {
+      if (typeof (callback) === 'function') {
+        callback(null, book);
+      } else {
+        return Promise.resolve(book);
+      }
+    })
+    .catch(err => {
+      if (typeof (callback) === 'function') {
+        // Error will be handled by callback
+        callback(err, null);
+      } else {
+        // Re-raise the error for the next .then/.catch in the chain
+        return Promise.reject(err);
+      }
+    });
 
-  if (typeof(callback) !== 'function') {
+  if (typeof (callback) !== 'function') {
     return promise;
   }
 }
