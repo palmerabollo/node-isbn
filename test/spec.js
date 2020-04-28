@@ -1,25 +1,25 @@
 'use strict';
 
-var isbn = require('..');
+const isbn = require('..');
 
-var assert = require('assert'),
-    nock = require('nock');
+const assert = require('assert');
+const nock = require('nock');
 
-var MOCK_ISBN = 'isbn';
+const MOCK_ISBN = 'isbn';
 
-var GOOGLE_BOOKS_API_BASE = 'https://www.googleapis.com';
-var GOOGLE_BOOKS_API_BOOK = '/books/v1/volumes?q=isbn:' + MOCK_ISBN;
+const GOOGLE_BOOKS_API_BASE = 'https://www.googleapis.com';
+const GOOGLE_BOOKS_API_BOOK = `/books/v1/volumes?q=isbn:${MOCK_ISBN}`;
 
-var OPENLIBRARY_API_BASE = 'https://openlibrary.org';
-var OPENLIBRARY_API_BOOK = '/api/books' + '?bibkeys=ISBN:' + MOCK_ISBN + '&format=json&jscmd=details';
+const OPENLIBRARY_API_BASE = 'https://openlibrary.org';
+const OPENLIBRARY_API_BOOK = `/api/books?bibkeys=ISBN:${MOCK_ISBN}&format=json&jscmd=details`;
 
-var WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
-var WORLDCAT_API_BOOK = '/webservices/xid/isbn/' + MOCK_ISBN + '?method=getMetadata&fl=*&format=json';
+const WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
+const WORLDCAT_API_BOOK = `/webservices/xid/isbn/${MOCK_ISBN}?method=getMetadata&fl=*&format=json`;
 
-describe('ISBN Resolver', function() {
-  describe('using callback', function() {
-    it('should resolve a valid ISBN with Google', function(done) {
-      var mockResponseGoogle = {
+describe('ISBN Resolver', () => {
+  describe('using callback', () => {
+    it('should resolve a valid ISBN with Google', done => {
+      const mockResponseGoogle = {
         totalItems: 1,
         items: [{
           'volumeInfo': {
@@ -33,21 +33,21 @@ describe('ISBN Resolver', function() {
           .get(GOOGLE_BOOKS_API_BOOK)
           .reply(200, JSON.stringify(mockResponseGoogle));
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.equal(err, null);
         assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
         done();
       })
     });
 
-    it('should resolve a valid ISBN with Open Library', function(done) {
-      var mockResponseGoogle = {
+    it('should resolve a valid ISBN with Open Library', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {}
-      mockResponseOpenLibrary['ISBN:' + MOCK_ISBN] = {
+      const mockResponseOpenLibrary = {};
+      mockResponseOpenLibrary[`ISBN:${MOCK_ISBN}`] = {
         'info_url': 'https://openlibrary.org/books/OL1743093M/Book',
         'preview_url': 'https://archive.org/details/whatsitallabouta00cain',
         'thumbnail_url': 'https://covers.openlibrary.org/b/id/6739180-S.jpg',
@@ -82,7 +82,7 @@ describe('ISBN Resolver', function() {
           .get(OPENLIBRARY_API_BOOK)
           .reply(200, JSON.stringify(mockResponseOpenLibrary));
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.equal(err, null);
         assert.equal(book.title, 'Book Title');
         assert.equal(book.publisher, 'Turtle Bay Books');
@@ -93,15 +93,15 @@ describe('ISBN Resolver', function() {
       })
     });
 
-    it('should resolve a valid ISBN with Worldcat', function(done) {
-      var mockResponseGoogle = {
+    it('should resolve a valid ISBN with Worldcat', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {};
+      const mockResponseOpenLibrary = {};
 
-      var mockResponseWorldcat = {
+      const mockResponseWorldcat = {
         "stat":"ok",
         "list":[{
           "url":["http://www.worldcat.org/oclc/249645389?referer=xid"],
@@ -131,25 +131,25 @@ describe('ISBN Resolver', function() {
           .get(WORLDCAT_API_BOOK)
           .reply(200, JSON.stringify(mockResponseWorldcat));
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, {title, publisher, publishedDate, language}) => {
         assert.equal(err, null);
-        assert.equal(book.title, 'Book Title');
-        assert.equal(book.publisher, 'Turtle Bay Books');
-        assert.equal(book.publishedDate, '1992');
-        assert.equal(book.language, 'en');
+        assert.equal(title, 'Book Title');
+        assert.equal(publisher, 'Turtle Bay Books');
+        assert.equal(publishedDate, '1992');
+        assert.equal(language, 'en');
         done();
       })
     });
 
-    it('should return an error if no book is found', function(done) {
-      var mockResponseGoogle = {
+    it('should return an error if no book is found', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {};
+      const mockResponseOpenLibrary = {};
 
-      var mockResponseWorldcat = {'stat': 'invalidId'};
+      const mockResponseWorldcat = {'stat': 'invalidId'};
 
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
@@ -163,22 +163,22 @@ describe('ISBN Resolver', function() {
           .get(WORLDCAT_API_BOOK)
           .reply(200, JSON.stringify(mockResponseWorldcat));
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.notEqual(err, null);
         done();
       })
     });
 
-    it('should return an error if external endpoints are not reachable', function(done) {
+    it('should return an error if external endpoints are not reachable', done => {
       nock.disableNetConnect();
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.notEqual(err, null);
         done();
       })
     });
 
-    it('should return an error if external endpoints return a HTTP error', function(done) {
+    it('should return an error if external endpoints return a HTTP error', done => {
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
           .reply(500);
@@ -191,13 +191,13 @@ describe('ISBN Resolver', function() {
           .get(WORLDCAT_API_BOOK)
           .reply(500);
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.notEqual(err, null);
         done();
       })
     });
 
-    it('should timeout on long connections', function(done) {
+    it('should timeout on long connections', done => {
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
           .socketDelay(10000)
@@ -213,14 +213,14 @@ describe('ISBN Resolver', function() {
           .socketDelay(10000)
           .reply(200, JSON.stringify({}));
 
-      isbn.resolve(MOCK_ISBN, function(err, book) {
+      isbn.resolve(MOCK_ISBN, (err, book) => {
         assert.notEqual(err, null);
         done();
       })
     });
 
-    it('should override default options', function(done) {
-      var mockResponseGoogle = {
+    it('should override default options', done => {
+      const mockResponseGoogle = {
         totalItems: 1,
         items: [{
           'volumeInfo': {
@@ -235,16 +235,16 @@ describe('ISBN Resolver', function() {
           .socketDelay(10000)
           .reply(200, JSON.stringify(mockResponseGoogle));
 
-      isbn.resolve(MOCK_ISBN, { timeout: 15000 }, function(err, book) {
+      isbn.resolve(MOCK_ISBN, { timeout: 15000 }, (err, book) => {
         assert.equal(err, null);
         done();
       })
     });
   });
 
-  describe('using promise', function() {
-    it('should resolve a valid ISBN with Google', function(done) {
-      var mockResponseGoogle = {
+  describe('using promise', () => {
+    it('should resolve a valid ISBN with Google', done => {
+      const mockResponseGoogle = {
         totalItems: 1,
         items: [{
           'volumeInfo': {
@@ -259,21 +259,21 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify(mockResponseGoogle));
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
         done();
       })
       .catch(done);
     });
 
-    it('should resolve a valid ISBN with Open Library', function(done) {
-      var mockResponseGoogle = {
+    it('should resolve a valid ISBN with Open Library', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {}
-      mockResponseOpenLibrary['ISBN:' + MOCK_ISBN] = {
+      const mockResponseOpenLibrary = {};
+      mockResponseOpenLibrary[`ISBN:${MOCK_ISBN}`] = {
         'info_url': 'https://openlibrary.org/books/OL1743093M/Book',
         'preview_url': 'https://archive.org/details/whatsitallabouta00cain',
         'thumbnail_url': 'https://covers.openlibrary.org/b/id/6739180-S.jpg',
@@ -309,7 +309,7 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify(mockResponseOpenLibrary));
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         assert.equal(book.title, 'Book Title');
         assert.equal(book.publisher, 'Turtle Bay Books');
         assert.equal(book.publishedDate, '1992');
@@ -320,15 +320,15 @@ describe('ISBN Resolver', function() {
       .catch(done);
     });
 
-    it('should resolve a valid ISBN with Worldcat', function(done) {
-      var mockResponseGoogle = {
+    it('should resolve a valid ISBN with Worldcat', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {};
+      const mockResponseOpenLibrary = {};
 
-      var mockResponseWorldcat = {
+      const mockResponseWorldcat = {
         "stat":"ok",
         "list":[{
           "url":["http://www.worldcat.org/oclc/249645389?referer=xid"],
@@ -359,25 +359,25 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify(mockResponseWorldcat));
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
-        assert.equal(book.title, 'Book Title');
-        assert.equal(book.publisher, 'Turtle Bay Books');
-        assert.equal(book.publishedDate, '1992');
-        assert.equal(book.language, 'en');
+      .then(({title, publisher, publishedDate, language}) => {
+        assert.equal(title, 'Book Title');
+        assert.equal(publisher, 'Turtle Bay Books');
+        assert.equal(publishedDate, '1992');
+        assert.equal(language, 'en');
         done();
       })
       .catch(done);
     });
 
-    it('should return an error if no book is found', function(done) {
-      var mockResponseGoogle = {
+    it('should return an error if no book is found', done => {
+      const mockResponseGoogle = {
         kind: 'books#volumes',
         totalItems: 0
       };
 
-      var mockResponseOpenLibrary = {};
+      const mockResponseOpenLibrary = {};
 
-      var mockResponseWorldcat = {'stat': 'invalidId'};
+      const mockResponseWorldcat = {'stat': 'invalidId'};
 
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
@@ -392,29 +392,29 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify(mockResponseWorldcat));
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         done(new Error('resolve succeeded when failure expected'));
       })
-      .catch(function (err) {
+      .catch(err => {
         assert.notEqual(err, null);
         done();
       });
     });
 
-    it('should return an error if external endpoints are not reachable', function(done) {
+    it('should return an error if external endpoints are not reachable', done => {
       nock.disableNetConnect();
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         done(new Error('resolve succeeded when failure expected'));
       })
-      .catch(function (err) {
+      .catch(err => {
         assert.notEqual(err, null);
         done();
       });
     });
 
-    it('should return an error if external endpoints return a HTTP error', function(done) {
+    it('should return an error if external endpoints return a HTTP error', done => {
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
           .reply(500);
@@ -428,16 +428,16 @@ describe('ISBN Resolver', function() {
           .reply(500);
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         done(new Error('resolve succeeded when failure expected'));
       })
-      .catch(function (err) {
+      .catch(err => {
         assert.notEqual(err, null);
         done();
       });
     });
 
-    it('should timeout on long connections', function(done) {
+    it('should timeout on long connections', done => {
       nock(GOOGLE_BOOKS_API_BASE)
           .get(GOOGLE_BOOKS_API_BOOK)
           .socketDelay(10000)
@@ -454,17 +454,17 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify({}));
 
       isbn.resolve(MOCK_ISBN)
-      .then(function(book) {
+      .then(book => {
         done(new Error('resolve succeeded when failure expected'));
       })
-      .catch(function (err) {
+      .catch(err => {
         assert.notEqual(err, null);
         done();
       });
     });
 
-    it('should override default options', function(done) {
-      var mockResponseGoogle = {
+    it('should override default options', done => {
+      const mockResponseGoogle = {
         totalItems: 1,
         items: [{
           'volumeInfo': {
@@ -480,8 +480,8 @@ describe('ISBN Resolver', function() {
           .reply(200, JSON.stringify(mockResponseGoogle));
 
       isbn.resolve(MOCK_ISBN, { timeout: 15000 })
-      .then(function(book) {
-        assert.equal(book.title, 'Code Complete');
+      .then(({title}) => {
+        assert.equal(title, 'Code Complete');
         done();
       })
       .catch(done);
