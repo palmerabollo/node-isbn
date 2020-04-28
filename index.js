@@ -202,7 +202,10 @@ function getBookInfo(providers, isbn, options) {
   const [firstProvider, ...remainingProviders] = providers;
 
   // Try the first provider..
-  const seed = PROVIDER_RESOLVERS[firstProvider](isbn, options)
+  const seed = PROVIDER_RESOLVERS[firstProvider](isbn, options);
+
+  // If there are no more providers, get out quickly! 🏃‍♂️
+  if (!remainingProviders.length) return seed;
 
   // ...and set remaining providers as fallbacks!
   return remainingProviders
@@ -211,33 +214,86 @@ function getBookInfo(providers, isbn, options) {
     }, seed);
 }
 
-function resolve(isbn) {
-  const options = arguments.length === 3 ? arguments[1] : null;
-  const callback = arguments.length === 3 ? arguments[2] : arguments[1];
+class Isbn {
+  constructor() {
+    // For usage outside this package!
+    this.PROVIDER_NAMES = PROVIDER_NAMES;
 
-  const promise = getBookInfo(DEFAULT_PROVIDERS, isbn, options)
-    .then(book => {
-      if (typeof (callback) === 'function') {
-        callback(null, book);
-      } else {
-        return book;
-      }
-    })
-    .catch(err => {
-      if (typeof (callback) === 'function') {
-        // Error will be handled by callback
-        callback(err, null);
-      } else {
-        // Rethrow the error for the next .then/.catch in the chain
-        throw err;
-      }
-    });
+    this._resetProviders();
+  }
 
-  if (typeof (callback) !== 'function') {
-    return promise;
+  _resetProviders() {
+    this._providers = DEFAULT_PROVIDERS;
+  }
+
+  /**
+   * Provider API that gets chained before `resolve`. If this is specified, the 
+   * `resolve` fn will honor this order.
+   * 
+   * @param {Array} providers - Array of providers. Must be one of more from `isbn.PROVIDER_NAMES`
+   * 
+   * @example
+   * 
+   * ```
+   * isbn
+   *  .provider([isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE])
+   *  .resolve(...)
+   * ```
+   */
+  provider(providers) {
+    const providerValid = Array.isArray(providers);
+    if (!providerValid) throw new Error('`providers` must be an array.');
+
+    // If there is nothing in the providers array, do nothing.
+    if (!providers.length) return this;
+
+    // remove duplicates, if any
+    providers = [...new Set(providers)];
+
+    // Check to see if there are any unsupported providers in the list.
+    const providersSupported = providers.reduce((acc, p) => {
+      return acc && DEFAULT_PROVIDERS.includes(p);
+    }, true);
+    if (!providersSupported) throw new Error('Please pass in supported providers.');
+
+    // All good, reset provider list
+    this._providers = providers;
+    return this;
+  }
+
+  /**
+   * Resolves book info, given an isbn
+   * @param {string} isbn 
+   */
+  resolve(isbn) {
+    const options = arguments.length === 3 ? arguments[1] : null;
+    const callback = arguments.length === 3 ? arguments[2] : arguments[1];
+
+    const promise = getBookInfo(this._providers, isbn, options)
+      .then(book => {
+        if (typeof (callback) === 'function') {
+          callback(null, book);
+        } else {
+          return book;
+        }
+      })
+      .catch(err => {
+        if (typeof (callback) === 'function') {
+          // Error will be handled by callback
+          callback(err, null);
+        } else {
+          // Rethrow the error for the next .then/.catch in the chain
+          throw err;
+        }
+      });
+
+    // Reset providers on instance, so that it works well during the next round!
+    this._resetProviders();
+
+    if (typeof (callback) !== 'function') {
+      return promise;
+    }
   }
 }
 
-module.exports = {
-  resolve
-};
+module.exports = new Isbn()

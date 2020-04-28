@@ -16,7 +16,13 @@ const OPENLIBRARY_API_BOOK = `/api/books?bibkeys=ISBN:${MOCK_ISBN}&format=json&j
 const WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 const WORLDCAT_API_BOOK = `/webservices/xid/isbn/${MOCK_ISBN}?method=getMetadata&fl=*&format=json`;
 
-describe('ISBN Resolver', () => {
+const DEFAULT_PROVIDER_ORDER = [
+  isbn.PROVIDER_NAMES.GOOGLE, 
+  isbn.PROVIDER_NAMES.OPENLIBRARY, 
+  isbn.PROVIDER_NAMES.WORLDCAT
+];
+
+describe('ISBN Resolver API', () => {
   describe('using callback', () => {
     it('should resolve a valid ISBN with Google', done => {
       const mockResponseGoogle = {
@@ -218,6 +224,67 @@ describe('ISBN Resolver', () => {
         done();
       })
     });
+
+    it('should invoke providers in order specified', done => {
+      const mockResponseGoogle = {
+        totalItems: 1,
+        items: [{
+          'volumeInfo': {
+            'title': 'Code Complete',
+            'authors': ['Steve McConnell']
+          }
+        }]
+      };
+
+      const mockResponseOpenLibrary = {};
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      nock(OPENLIBRARY_API_BASE)
+          .get(OPENLIBRARY_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+      isbn
+        .provider([isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE])
+        .resolve(MOCK_ISBN, (err, book) => {
+          assert.equal(err, null);
+
+          // Assert order: OpenLib (err) -> Google (success) 
+          // Notice worldcat is not called!
+          assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
+          done();
+        })
+    });
+
+    it('should reset providers after completion', done => {
+      const mockResponseGoogle = {
+        totalItems: 1,
+        items: [{
+          'volumeInfo': {
+            'title': 'Code Complete',
+            'authors': ['Steve McConnell']
+          }
+        }]
+      };
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      isbn
+        .provider([isbn.PROVIDER_NAMES.GOOGLE])
+        .resolve(MOCK_ISBN, (err, book) => {
+          assert.equal(err, null);
+          assert.deepEqual(
+            isbn._providers, 
+            DEFAULT_PROVIDER_ORDER
+          )
+          
+          done();
+        })
+    })
 
     it('should override default options', done => {
       const mockResponseGoogle = {
@@ -463,6 +530,66 @@ describe('ISBN Resolver', () => {
       });
     });
 
+    it('should invoke providers in order specified', done => {
+      const mockResponseGoogle = {
+        totalItems: 1,
+        items: [{
+          'volumeInfo': {
+            'title': 'Code Complete',
+            'authors': ['Steve McConnell']
+          }
+        }]
+      };
+
+      const mockResponseOpenLibrary = {};
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      nock(OPENLIBRARY_API_BASE)
+          .get(OPENLIBRARY_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+      isbn
+        .provider([isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE])
+        .resolve(MOCK_ISBN)
+        .then((book) => {
+          // Assert order: OpenLib (err) -> Google (success) 
+          // Notice worldcat is not called!
+          assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
+          done();
+        })
+    });
+
+    it('should reset providers after completion', done => {
+      const mockResponseGoogle = {
+        totalItems: 1,
+        items: [{
+          'volumeInfo': {
+            'title': 'Code Complete',
+            'authors': ['Steve McConnell']
+          }
+        }]
+      };
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      isbn
+        .provider([isbn.PROVIDER_NAMES.GOOGLE])
+        .resolve(MOCK_ISBN)
+        .then((book) => {
+          assert.deepEqual(
+            isbn._providers, 
+            DEFAULT_PROVIDER_ORDER
+          )
+          
+          done();
+        })
+    })
+
     it('should override default options', done => {
       const mockResponseGoogle = {
         totalItems: 1,
@@ -488,3 +615,56 @@ describe('ISBN Resolver', () => {
     });
   });  
 })
+
+describe('ISBN Provider API', () => {
+  it('should use default providers if providers array is empty', () => {
+    const expectedProviders = isbn._providers;
+    isbn.provider([]);
+    assert.deepEqual(expectedProviders, isbn._providers);
+  });
+
+  it('should return an error if providers is not an array', () => {
+    const expectedProviders = isbn._providers;
+    
+    try {
+      isbn.provider('string-that-must-not-work');
+      assert.fail(`Test must've failed! 😱`);
+    } catch (error) {
+      assert.deepEqual(expectedProviders, isbn._providers);
+    }
+  });
+
+  it('should return an error if invalid providers in list', () => {
+    const expectedProviders = isbn._providers;
+    
+    try {
+      isbn.provider(['gibberish', 'wow', 'sogood']);
+      assert.fail(`Test must've failed! 😱`);
+    } catch (error) {
+      assert.deepEqual(expectedProviders, isbn._providers);
+    }
+  });
+
+  it('should remove duplicates', () => {
+    const providers = [isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.OPENLIBRARY];
+    const expected = [isbn.PROVIDER_NAMES.OPENLIBRARY];
+
+    isbn.provider(providers);
+    assert.deepEqual(expected, isbn._providers);
+  });
+
+  it('should set providers as expected', () => {
+    const providers = [isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE];
+
+    isbn.provider(providers);
+    assert.deepEqual(providers, isbn._providers);
+  });
+
+  it('should return instance after setting provider', () => {
+    const providers = [isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE];
+
+    const result = isbn.provider(providers);
+    assert.strictEqual(result.constructor, isbn.constructor)
+  });
+})
+

@@ -98,6 +98,46 @@ that was used to find the book. In general, Google Books API returns more inform
 }
 ```
 
+### Setting backend providers
+
+You can optionally specify the providers that you want to use, in the order you need them to be invoked. 
+
+```javascript
+// This request will search first in the Open Library API and then in the Google Books API
+isbn.provider(['openlibrary', 'google'])
+    .resolve('0735619670')
+    .then(function (book) {
+        console.log('Book found %j', book);
+    }).catch(function (err) {
+        console.log('Book not found', err);
+    });
+```
+
+```javascript
+// This request will search ONLY in the Google Books API
+isbn.provider(['google'])
+    .resolve('0735619670')
+    .then(function (book) {
+        console.log('Book found %j', book);
+    }).catch(function (err) {
+        console.log('Book not found', err);
+    });
+```
+
+If you do not like using strings to specify the providers, you could grab the providers from `isbn.PROVIDER_NAMES` constant that the library provides!
+
+
+```javascript
+// This request will search ONLY in the Google Books API
+isbn.provider([isbn.PROVIDER_NAMES.GOOGLE])
+    .resolve('0735619670')
+    .then(function (book) {
+        console.log('Book found %j', book);
+    }).catch(function (err) {
+        console.log('Book not found', err);
+    });
+```
+
 ## License
 
 **AGPL v3.0 LICENSE**
