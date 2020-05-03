@@ -198,7 +198,13 @@ function _resolveWorldcat(isbn, options) {
   });
 }
 
-function getBookInfo(providers, isbn, options) {
+/**
+ * Calls the resolvers and returns the information based on isbn
+ * @param {*} providers 
+ * @param {*} isbn 
+ * @param {*} options 
+ */
+function _getBookInfo(providers, isbn, options) {
   const [firstProvider, ...remainingProviders] = providers;
 
   // Try the first provider..
@@ -214,6 +220,38 @@ function getBookInfo(providers, isbn, options) {
     }, seed);
 }
 
+/**
+ * Parses arguments passed to `isbn.resolve`
+ * 
+ * TODO: Reduce complexity by moving `options` to the last argument
+ * 
+ * @param {*} args 
+ */
+function _parseResolveArgs(args) {
+  let options = null
+  let callback = null
+
+  // resolve(isbn)
+  if (args.length === 1) {
+    options = null
+    callback = null
+  }
+  // resolve(isbn, options), resolve(isbn, callback)
+  else if (args.length === 2) {
+    const isCallbackFn = typeof args[1] === 'function'
+
+    options = isCallbackFn ? null : args[1]
+    callback = isCallbackFn ? args[1] : null
+  }
+  // resolve(isbn, options, callback)
+  else if (args.length === 3) {
+    options = args[1]
+    callback = args[2]
+  }
+
+  return { options, callback }
+}
+
 class Isbn {
   constructor() {
     // For usage outside this package!
@@ -222,6 +260,9 @@ class Isbn {
     this._resetProviders();
   }
 
+  /**
+   * Resets providers to the default set
+   */
   _resetProviders() {
     this._providers = DEFAULT_PROVIDERS;
   }
@@ -266,10 +307,9 @@ class Isbn {
    * @param {string} isbn 
    */
   resolve(isbn) {
-    const options = arguments.length === 3 ? arguments[1] : null;
-    const callback = arguments.length === 3 ? arguments[2] : arguments[1];
+    const { options, callback } = _parseResolveArgs(Array.from(arguments))
 
-    const promise = getBookInfo(this._providers, isbn, options)
+    const promise = _getBookInfo(this._providers, isbn, options)
       .then(book => {
         if (typeof (callback) === 'function') {
           callback(null, book);
