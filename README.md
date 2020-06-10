@@ -4,7 +4,7 @@ A simple node.js module that **resolves books by ISBN** using multiple services:
 * [Google Books API](https://developers.google.com/books/)
 * [Open Library Books API](https://openlibrary.org/dev/docs/api/books)
 * [WorldCat xISBN API](http://xisbn.worldcat.org/xisbnadmin/doc/api.htm)
-* [ISBNdb API](https://isbndb.com/apidocs/v2)
+* [ISBNdb API](https://isbndb.com/apidocs/v2) using API key in the environment variable `ISBNDB_API_KEY`
 
 ## Installation
 
