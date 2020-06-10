@@ -16,10 +16,14 @@ const OPENLIBRARY_API_BOOK = `/api/books?bibkeys=ISBN:${MOCK_ISBN}&format=json&j
 const WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 const WORLDCAT_API_BOOK = `/webservices/xid/isbn/${MOCK_ISBN}?method=getMetadata&fl=*&format=json`;
 
+const ISBNDB_API_BASE = 'https://api2.isbndb.com';
+const ISBNDB_API_BOOK = `/book/${MOCK_ISBN}`;
+
 const DEFAULT_PROVIDER_ORDER = [
-  isbn.PROVIDER_NAMES.GOOGLE, 
-  isbn.PROVIDER_NAMES.OPENLIBRARY, 
-  isbn.PROVIDER_NAMES.WORLDCAT
+  isbn.PROVIDER_NAMES.GOOGLE,
+  isbn.PROVIDER_NAMES.OPENLIBRARY,
+  isbn.PROVIDER_NAMES.WORLDCAT,
+  isbn.PROVIDER_NAMES.ISBNDB
 ];
 
 describe('ISBN Resolver API', () => {
@@ -147,6 +151,58 @@ describe('ISBN Resolver API', () => {
       })
     });
 
+    it('should resolve a valid ISBN with ISBNdb', done => {
+      const mockResponseGoogle = {
+        kind: 'books#volumes',
+        totalItems: 0
+      };
+
+      const mockResponseOpenLibrary = {};
+
+      const mockResponseWorldcat = {'stat': 'invalidId'};
+
+      const mockResponseIsbnDb = { book:
+       { publisher: 'Turtle Bay Books',
+         image: 'https://images.isbndb.com/covers/30/23/9781484233023.jpg',
+         title_long:
+          'Book Title',
+         edition: '1',
+         pages: 174,
+         date_published: '1992-12-13',
+         authors: [ 'Aswin Pranam' ],
+         title:
+          'Book Title',
+         isbn13: '9781484233023',
+         msrp: '1.23',
+         binding: 'Paperback',
+         isbn: '1484233026' }
+      }
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      nock(OPENLIBRARY_API_BASE)
+          .get(OPENLIBRARY_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+      nock(WORLDCAT_API_BASE)
+          .get(WORLDCAT_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseWorldcat));
+
+      nock(ISBNDB_API_BASE)
+          .get(ISBNDB_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseIsbnDb));
+
+      isbn.resolve(MOCK_ISBN, (err, {title, publisher, publishedDate, language}) => {
+        assert.equal(err, null);
+        assert.equal(title, 'Book Title');
+        assert.equal(publisher, 'Turtle Bay Books');
+        assert.equal(publishedDate, '1992-12-13');
+        done();
+      })
+    });
+
     it('should return an error if no book is found', done => {
       const mockResponseGoogle = {
         kind: 'books#volumes',
@@ -251,7 +307,7 @@ describe('ISBN Resolver API', () => {
         .resolve(MOCK_ISBN, (err, book) => {
           assert.equal(err, null);
 
-          // Assert order: OpenLib (err) -> Google (success) 
+          // Assert order: OpenLib (err) -> Google (success)
           // Notice worldcat is not called!
           assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
           done();
@@ -278,10 +334,10 @@ describe('ISBN Resolver API', () => {
         .resolve(MOCK_ISBN, (err, book) => {
           assert.equal(err, null);
           assert.deepEqual(
-            isbn._providers, 
+            isbn._providers,
             DEFAULT_PROVIDER_ORDER
           )
-          
+
           done();
         })
     })
@@ -436,6 +492,59 @@ describe('ISBN Resolver API', () => {
       .catch(done);
     });
 
+    it('should resolve a valid ISBN with ISBNdb', done => {
+      const mockResponseGoogle = {
+        kind: 'books#volumes',
+        totalItems: 0
+      };
+
+      const mockResponseOpenLibrary = {};
+
+      const mockResponseWorldcat = {'stat': 'invalidId'};
+
+      const mockResponseIsbnDb = { book:
+       { publisher: 'Turtle Bay Books',
+         image: 'https://images.isbndb.com/covers/30/23/9781484233023.jpg',
+         title_long:
+          'Book Title',
+         edition: '1',
+         pages: 174,
+         date_published: '1992-12-13',
+         authors: [ 'Aswin Pranam' ],
+         title:
+          'Book Title',
+         isbn13: '9781484233023',
+         msrp: '1.23',
+         binding: 'Paperback',
+         isbn: '1484233026' }
+      }
+
+      nock(GOOGLE_BOOKS_API_BASE)
+          .get(GOOGLE_BOOKS_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseGoogle));
+
+      nock(OPENLIBRARY_API_BASE)
+          .get(OPENLIBRARY_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseOpenLibrary));
+
+      nock(WORLDCAT_API_BASE)
+          .get(WORLDCAT_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseWorldcat));
+
+      nock(ISBNDB_API_BASE)
+          .get(ISBNDB_API_BOOK)
+          .reply(200, JSON.stringify(mockResponseIsbnDb));
+
+      isbn.resolve(MOCK_ISBN)
+      .then(({title, publisher, publishedDate, language}) => {
+        assert.equal(title, 'Book Title');
+        assert.equal(publisher, 'Turtle Bay Books');
+        assert.equal(publishedDate, '1992-12-13');
+        done();
+      })
+      .catch(done);
+    });
+
     it('should return an error if no book is found', done => {
       const mockResponseGoogle = {
         kind: 'books#volumes',
@@ -555,7 +664,7 @@ describe('ISBN Resolver API', () => {
         .provider([isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE])
         .resolve(MOCK_ISBN)
         .then((book) => {
-          // Assert order: OpenLib (err) -> Google (success) 
+          // Assert order: OpenLib (err) -> Google (success)
           // Notice worldcat is not called!
           assert.deepEqual(book, mockResponseGoogle.items[0].volumeInfo);
           done();
@@ -582,10 +691,10 @@ describe('ISBN Resolver API', () => {
         .resolve(MOCK_ISBN)
         .then((book) => {
           assert.deepEqual(
-            isbn._providers, 
+            isbn._providers,
             DEFAULT_PROVIDER_ORDER
           )
-          
+
           done();
         })
     })
@@ -613,7 +722,7 @@ describe('ISBN Resolver API', () => {
       })
       .catch(done);
     });
-  });  
+  });
 })
 
 describe('ISBN Provider API', () => {
@@ -625,7 +734,7 @@ describe('ISBN Provider API', () => {
 
   it('should return an error if providers is not an array', () => {
     const expectedProviders = isbn._providers;
-    
+
     try {
       isbn.provider('string-that-must-not-work');
       assert.fail(`Test must've failed! 😱`);
@@ -636,7 +745,7 @@ describe('ISBN Provider API', () => {
 
   it('should return an error if invalid providers in list', () => {
     const expectedProviders = isbn._providers;
-    
+
     try {
       isbn.provider(['gibberish', 'wow', 'sogood']);
       assert.fail(`Test must've failed! 😱`);
