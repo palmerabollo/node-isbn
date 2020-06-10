@@ -18,22 +18,28 @@ const OPENLIBRARY_API_BOOK = '/api/books';
 const WORLDCAT_API_BASE = 'http://xisbn.worldcat.org';
 const WORLDCAT_API_BOOK = '/webservices/xid/isbn';
 
+const ISBNDB_API_BASE = 'https://api2.isbndb.com';
+const ISBNDB_API_BOOK = '/book';
+
 const PROVIDER_NAMES = {
   GOOGLE: 'google',
   OPENLIBRARY: 'openlibrary',
-  WORLDCAT: 'worldcat'
+  WORLDCAT: 'worldcat',
+  ISBNDB: 'isbndb'
 }
 
 const DEFAULT_PROVIDERS = [
   PROVIDER_NAMES.GOOGLE,
   PROVIDER_NAMES.OPENLIBRARY,
-  PROVIDER_NAMES.WORLDCAT
+  PROVIDER_NAMES.WORLDCAT,
+  PROVIDER_NAMES.ISBNDB
 ]
 
 const PROVIDER_RESOLVERS = {
   [PROVIDER_NAMES.GOOGLE]: _resolveGoogle,
   [PROVIDER_NAMES.OPENLIBRARY]: _resolveOpenLibrary,
-  [PROVIDER_NAMES.WORLDCAT]: _resolveWorldcat
+  [PROVIDER_NAMES.WORLDCAT]: _resolveWorldcat,
+  [PROVIDER_NAMES.ISBNDB]: _resolveIsbnDb
 }
 
 function _resolveGoogle(isbn, options) {
@@ -198,11 +204,60 @@ function _resolveWorldcat(isbn, options) {
   });
 }
 
+function _resolveIsbnDb(isbn, options) {
+
+  const standardize = function standardize(book) {
+    const standardBook = {
+      'title': book.title_long,
+      'publishedDate': book.date_published,
+      'authors': book.authors,
+      'description': book.overview,
+      'industryIdentifiers': [
+        book.isbn,
+        book.isbn13,
+        book.dewey_decimal
+      ].filter(x => !!x),
+      'pageCount': book.pages,
+      'printType': 'BOOK',
+      'categories': book.subjects,
+      'imageLinks': {
+        'smallThumbnail': book.image,
+        'thumbnail': book.image
+      },
+      'publisher': book.publisher,
+      'language': book.language,
+    };
+
+    return standardBook;
+  };
+
+  const requestOptions = Object.assign({}, defaultOptions, options, {
+    url: `${ISBNDB_API_BASE + ISBNDB_API_BOOK}/${isbn}`,
+    headers: {'Authorization': process.env.ISBNDB_API_KEY || ''},
+  });
+
+  return axios.request(requestOptions).then(({status, statusCode, data}) => {
+    if (status !== 200) {
+      throw new Error(`wrong response code: ${statusCode}`);
+    }
+
+    const books = data;
+
+    if (!books.book) {
+      throw new Error(`no books found with isbn: ${isbn}`);
+    }
+
+    const book = books.book;
+
+    return standardize(book);
+  });
+}
+
 /**
  * Calls the resolvers and returns the information based on isbn
- * @param {*} providers 
- * @param {*} isbn 
- * @param {*} options 
+ * @param {*} providers
+ * @param {*} isbn
+ * @param {*} options
  */
 function _getBookInfo(providers, isbn, options) {
   const [firstProvider, ...remainingProviders] = providers;
@@ -222,10 +277,10 @@ function _getBookInfo(providers, isbn, options) {
 
 /**
  * Parses arguments passed to `isbn.resolve`
- * 
+ *
  * TODO: Reduce complexity by moving `options` to the last argument
- * 
- * @param {*} args 
+ *
+ * @param {*} args
  */
 function _parseResolveArgs(args) {
   let options = null
@@ -268,13 +323,13 @@ class Isbn {
   }
 
   /**
-   * Provider API that gets chained before `resolve`. If this is specified, the 
+   * Provider API that gets chained before `resolve`. If this is specified, the
    * `resolve` fn will honor this order.
-   * 
+   *
    * @param {Array} providers - Array of providers. Must be one of more from `isbn.PROVIDER_NAMES`
-   * 
+   *
    * @example
-   * 
+   *
    * ```
    * isbn
    *  .provider([isbn.PROVIDER_NAMES.OPENLIBRARY, isbn.PROVIDER_NAMES.GOOGLE])
@@ -304,7 +359,7 @@ class Isbn {
 
   /**
    * Resolves book info, given an isbn
-   * @param {string} isbn 
+   * @param {string} isbn
    */
   resolve(isbn) {
     const { options, callback } = _parseResolveArgs(Array.from(arguments))

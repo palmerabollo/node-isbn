@@ -4,6 +4,7 @@ A simple node.js module that **resolves books by ISBN** using multiple services:
 * [Google Books API](https://developers.google.com/books/)
 * [Open Library Books API](https://openlibrary.org/dev/docs/api/books)
 * [WorldCat xISBN API](http://xisbn.worldcat.org/xisbnadmin/doc/api.htm)
+* [ISBNdb API](https://isbndb.com/apidocs/v2) using API key in the environment variable `ISBNDB_API_KEY`
 
 ## Installation
 
@@ -100,7 +101,7 @@ that was used to find the book. In general, Google Books API returns more inform
 
 ### Setting backend providers
 
-You can optionally specify the providers that you want to use, in the order you need them to be invoked. 
+You can optionally specify the providers that you want to use, in the order you need them to be invoked.
 
 ```javascript
 // This request will search first in the Open Library API and then in the Google Books API
@@ -144,8 +145,9 @@ isbn.provider([isbn.PROVIDER_NAMES.GOOGLE])
 http://www.gnu.org/licenses/agpl-3.0.html
 
 See also [Google Books API Terms of Service](https://developers.google.com/books/terms),
-[Open Library Licensing](https://openlibrary.org/developers/licensing) and
-[WorldCat xISBN Terms of Service](http://www.oclc.org/worldcat/community/terms.en.html).
+[Open Library Licensing](https://openlibrary.org/developers/licensing),
+[WorldCat xISBN Terms of Service](http://www.oclc.org/worldcat/community/terms.en.html),
+[ISBNdb Terms and Conditions](https://isbndb.com/terms-and-conditions).
 
 ## Development
 
