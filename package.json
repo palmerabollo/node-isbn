@@ -23,7 +23,7 @@
   "author": "Guido García <guido.garcia.bernardo@gmail.com>",
   "license": "AGPL",
   "devDependencies": {
-    "mocha": "^6.2.2",
+    "mocha": "^8.3.2",
     "nock": "^9.0.13"
   },
   "dependencies": {
